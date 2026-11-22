@@ -7,6 +7,7 @@ package com.shinpstudio.igoreview;
  * MUST be serialized on a worker thread, never the Android main thread.
  * Do not produce fabricated values if the model is not initialized.
  */
-interface GoAnalysisEngine {
+interface GoAnalysisEngine extends AutoCloseable {
+    @Override default void close() {}
     KataGoClient.Result analyze(BoardRecognizer.Position board, int sideToPlay) throws Exception;
 }

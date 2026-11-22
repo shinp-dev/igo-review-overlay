@@ -97,7 +97,7 @@ public final class ReviewOverlayService extends Service {
         if(consent==null){stopSelf();return START_NOT_STICKY;}
         try{
             settings=new AppSettings(this);
-            analysisEngine=new LanGoAnalysisEngine(settings);
+            analysisEngine=new NativeGoAnalysisEngine(this,settings);
             startForeground(1,notification());
             startCapture(consent);
             buildWindows();
@@ -393,6 +393,13 @@ public final class ReviewOverlayService extends Service {
     }
     @Override public void onDestroy(){
         generation++;if(task!=null)task.cancel(true);engine.shutdownNow();
+        // A blocking GTP read must not run on the main thread during teardown.
+        // Stop the native process from the existing worker when possible.
+        GoAnalysisEngine retired = analysisEngine;
+        if(retired!=null){
+            Thread shutdown=new Thread(retired::close,"katago-overlay-shutdown");
+            shutdown.setDaemon(true);shutdown.start();
+        }
         if(reader!=null){reader.setOnImageAvailableListener(null,null);reader.close();reader=null;}
         if(virtualDisplay!=null){virtualDisplay.release();virtualDisplay=null;}
         if(projection!=null){projection.unregisterCallback(projectionCallback);projection.stop();projection=null;}

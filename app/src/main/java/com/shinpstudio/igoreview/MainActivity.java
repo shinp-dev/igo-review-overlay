@@ -16,7 +16,6 @@ public final class MainActivity extends Activity {
     private static final int CAPTURE_REQUEST=1001;
     private final int[] visitValues={50,100,200,500,1000};
     private AppSettings settings;
-    private EditText endpoint,token;
     private Spinner visits,candidates,metric;
     private SeekBar opacity;
     private CheckBox autoRefresh;
@@ -34,18 +33,8 @@ public final class MainActivity extends Activity {
         heading.setText("囲碁クエスト 9路解析");heading.setTextSize(24);heading.setTextColor(0xff12435e);
         root.addView(heading);
         note(root,"終局後の振り返り用。囲碁クエストに重ねてKataGoの候補手を一手ずつ表示します。");
-        section(root,"KataGo接続先");
-        endpoint=new EditText(this);
-        endpoint.setSingleLine(true);
-        endpoint.setHint("http://PCのLAN内IP:8765");
-        endpoint.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);
-        endpoint.setText(settings.endpoint());root.addView(endpoint,full());
-        token=new EditText(this);
-        token.setSingleLine(true);
-        token.setHint("接続トークン（必要な場合）");
-        token.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        token.setText(settings.token());root.addView(token,full());
-        note(root,"初期版のKataGoはPC側ブリッジで実行します。スマホから送信するのは81交点の石配置だけです。");
+        section(root,"端末内KataGo");
+        note(root,"KataGo CPUエンジンと軽量モデルをAPKに同梱。PC・通信接続不要です。初回のみモデルの検証と読み込みが行われます。9路専用高精度モデルの対応は今後の拡張です。");
         section(root,"解析設定");
         visits=spinner(root,"探索回数",new String[]{"軽量 50","軽量 100","標準 200","高精度 500","高精度 1000"},visitIndex());
         candidates=spinner(root,"候補手の数",new String[]{"1手","2手","3手","4手","5手"},settings.candidates()-1);
@@ -74,9 +63,6 @@ public final class MainActivity extends Activity {
         button(root,"設定を保存",this::save);
         button(root,"盤面解析を開始",()->{
             save();
-            if(settings.endpoint().isEmpty()){
-                Toast.makeText(this,"KataGo接続先のURLを入力してください",Toast.LENGTH_LONG).show();return;
-            }
             if(!Settings.canDrawOverlays(this)){
                 startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     Uri.parse("package:"+getPackageName())));return;
@@ -89,8 +75,7 @@ public final class MainActivity extends Activity {
         setContentView(scroll);
     }
     private void save(){
-        String url=endpoint.getText().toString().trim().replaceAll("/+$","");
-        settings.save(url,token.getText().toString(),visitValues[visits.getSelectedItemPosition()],
+        settings.save("", "",visitValues[visits.getSelectedItemPosition()],
             candidates.getSelectedItemPosition()+1,metric.getSelectedItemPosition(),
             opacity.getProgress()+20,autoRefresh.isChecked());
         Toast.makeText(this,"設定を保存しました",Toast.LENGTH_SHORT).show();
