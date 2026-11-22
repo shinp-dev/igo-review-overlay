@@ -322,7 +322,13 @@ public final class ReviewOverlayService extends Service {
         int turn=turnOverride!=BoardRecognizer.UNKNOWN?turnOverride:
             BoardRecognizer.inferTurn(stable,p);
         if(turn==BoardRecognizer.UNKNOWN){
-            // Keep last recognized position so the next transition can infer the turn.
+            // Never leave scores from a DIFFERENT position on screen.
+            if(!p.sameStones(stable)){
+                generation++;
+                if(task!=null)task.cancel(true);
+                result=null;evaluated=null;drawing.invalidate();
+            }
+            // Retain this snapshot so a later single-stone transition can infer turn.
             stable=p;message("手番が不明です。次の一手を待つか手番を選んでください");
             return;
         }
@@ -330,7 +336,11 @@ public final class ReviewOverlayService extends Service {
         if(next.same(stable))return;
         stable=next;
         if(settings.auto()&&shown)analyze(next);
-        else message(turn==BoardRecognizer.BLACK?"黒番 · 自動解析停止中":"白番 · 自動解析停止中");
+        else {
+            generation++;if(task!=null)task.cancel(true);
+            result=null;evaluated=null;drawing.invalidate();
+            message(turn==BoardRecognizer.BLACK?"黒番 · 自動解析停止中":"白番 · 自動解析停止中");
+        }
     }
     private void analyze(BoardRecognizer.Position p){
         generation++;
