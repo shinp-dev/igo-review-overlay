@@ -68,7 +68,8 @@ public final class ReviewOverlayService extends Service {
     private HandlerThread captureThread;
     private Handler captureHandler;
     private int screenWidth,screenHeight;
-    private View toggleZone;
+    private TextView toggleZone;
+    private View upperHandle,lowerHandle;
     private WindowManager.LayoutParams toggleParams;
     private TextView status,turnButton;
     private BoardDraw drawing;
@@ -77,7 +78,7 @@ public final class ReviewOverlayService extends Service {
     private int confirmations,misses,turnOverride=BoardRecognizer.UNKNOWN;
     private int generation;
     private Future<?> task;
-    private boolean dragging,shown;
+    private boolean dragging,adjusting,shown;
     private long lastSample;
     private final MediaProjection.Callback projectionCallback=new MediaProjection.Callback(){
         @Override public void onStop(){ui.post(ReviewOverlayService.this::stopSelf);}
@@ -152,15 +153,21 @@ public final class ReviewOverlayService extends Service {
         addHandle(true);
         addHandle(false);
 
-        // Deliberately keep the touch target outside the grid. Everything else passes through.
-        toggleZone=new View(overlayContext);
+        // A visible green toggle ABOVE the topmost stones. Never place it beside the
+        // rightmost intersections: MediaProjection would read the toggle as board pixels.
+        toggleZone=new TextView(overlayContext);
+        toggleZone.setGravity(Gravity.CENTER);
+        toggleZone.setTextColor(Color.WHITE);
+        toggleZone.setTypeface(Typeface.DEFAULT_BOLD);
+        toggleZone.setTextSize(11);
+        toggleZone.setPadding(dp(6),0,dp(6),0);
         toggleZone.setOnClickListener(v->{
             shown=!shown;settings.show(shown);
             updateToggle();drawing.invalidate();
             if(shown&&stable!=null&&(result==null||!stable.same(evaluated)))analyze(stable);
-            if(!shown)message("評価値は非表示（右端の帯をタップで再表示）");
+            if(!shown)message("評価値は非表示（上の緑バーをタップで再表示）");
         });
-        toggleParams=params(dp(15),dp(70),"IgoRightEdgeToggle");
+        toggleParams=params(dp(126),dp(23),"IgoAboveBoardToggle");
         positionToggle();
         add(toggleZone,toggleParams);
 
@@ -200,6 +207,21 @@ public final class ReviewOverlayService extends Service {
             }
         });
         row.addView(refresh,buttonWidth());
+        Button adjust=new Button(overlayContext);
+        adjust.setAllCaps(false);adjust.setText("枠調整");adjust.setTextSize(11);
+        adjust.setOnClickListener(v->{
+            adjusting=!adjusting;
+            upperHandle.setVisibility(adjusting?View.VISIBLE:View.GONE);
+            lowerHandle.setVisibility(adjusting?View.VISIBLE:View.GONE);
+            adjust.setText(adjusting?"調整完了":"枠調整");
+            clearPosition();
+            if(adjusting)message("左右のハンドルを外周交点に合わせてください");
+            else{
+                settings.saveGrid(frame,screenWidth,screenHeight);
+                message("盤面枠を保存しました。認識を再開します");
+            }
+        });
+        row.addView(adjust,buttonWidth());
         Button stop=new Button(overlayContext);
         stop.setAllCaps(false);stop.setText("終了");stop.setTextSize(12);
         stop.setOnClickListener(v->stopSelf());
@@ -235,6 +257,8 @@ public final class ReviewOverlayService extends Service {
         knob.setText(upper?"↖":"↘");knob.setTextSize(17);
         knob.setTextColor(Color.WHITE);knob.setGravity(Gravity.CENTER);
         knob.setBackground(round(0xff177fa6,dp(9)));
+        knob.setVisibility(View.GONE);
+        if(upper)upperHandle=knob;else lowerHandle=knob;
         knob.setContentDescription(upper?"左上交点を移動":"右下交点を移動");
         WindowManager.LayoutParams p=params(dp(30),dp(30),upper?"IgoTopLeft":"IgoBottomRight");
         moveHandle(p,upper);
@@ -277,28 +301,32 @@ public final class ReviewOverlayService extends Service {
     }
     private void positionToggle(){
         if(toggleZone==null)return;
-        int left=frame.right+dp(2),right=screenWidth-dp(2);
-        int available=right-left;
-        if(available<dp(8)){toggleZone.setVisibility(View.GONE);return;}
-        int w=Math.min(dp(46),available);
-        int h=Math.min(frame.height()-dp(55),Math.round(screenHeight*.38f));
-        if(h<dp(50))h=dp(50);
-        toggleParams.width=w;toggleParams.height=h;
-        toggleParams.x=left+(available-w)/2;
-        toggleParams.y=clamp(frame.centerY()-h/2,0,screenHeight-h);
+        // Keep the ENTIRE bar above the stone silhouettes (roughly half a cell
+        // above the top intersection), even when the user moves the board frame.
+        float cell=Math.min(frame.width(),frame.height())/8f;
+        int stoneTop=frame.top-Math.round(cell*.50f);
+        int barBottom=stoneTop-dp(4);
+        if(barBottom<toggleParams.height){
+            toggleZone.setVisibility(View.GONE);
+            return;
+        }
+        toggleParams.x=clamp(frame.centerX()-toggleParams.width/2,0,screenWidth-toggleParams.width);
+        toggleParams.y=barBottom-toggleParams.height;
         toggleZone.setVisibility(View.VISIBLE);
         updateToggle();
         if(toggleZone.getParent()!=null)manager.updateViewLayout(toggleZone,toggleParams);
     }
     private void updateToggle(){
         if(toggleZone!=null){
-            toggleZone.setBackground(round(shown?0x8860caa5:0x88878b91,dp(8)));
+            // Both states stay green, so the control is always discoverable.
+            toggleZone.setBackground(round(shown?0xee13875e:0xee426c58,dp(8)));
+            toggleZone.setText(shown?"評価表示 ON":"評価表示 OFF");
             toggleZone.setContentDescription(shown?"評価値を非表示にする":"評価値を表示する");
         }
     }
     private void readFrame(ImageReader source){
         try(Image image=source.acquireLatestImage()){
-            if(image==null||dragging)return;
+            if(image==null||dragging||adjusting)return;
             long now=SystemClock.elapsedRealtime();
             if(now-lastSample<TICK_MS)return;
             lastSample=now;
