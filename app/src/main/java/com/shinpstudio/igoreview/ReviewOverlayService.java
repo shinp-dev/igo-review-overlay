@@ -422,7 +422,9 @@ public final class ReviewOverlayService extends Service {
                 KataGoClient.Candidate move=result.moves.get(i);
                 int row=move.index/9,col=move.index%9;
                 float cx=frame.left+col*sx,cy=frame.top+row*sy;
-                float radius=Math.min(sx,sy)*.34f;
+                // Keep markers INSIDE the recognizer's 0.325-grid sampling annulus.
+                // Otherwise MediaProjection may re-read our overlay as stones.
+                float radius=Math.min(sx,sy)*.24f;
                 int shade=i==0?0xff0f815c:0xff213a55;
                 int alpha=Math.round(settings.opacity()*2.55f);
                 paint.setStyle(Paint.Style.FILL);
