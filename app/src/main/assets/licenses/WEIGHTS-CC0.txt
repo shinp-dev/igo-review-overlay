@@ -1,0 +1,7 @@
+g170-b6c96-s175395328-d26788732
+Source: https://katagoarchive.org/g170/neuralnets/g170-b6c96-s175395328-d26788732.bin.gz
+SHA-256: f57fddf4672364d385d6ab177364ab819810d1123e229cb2649c4f337a2160b1
+
+Official KataGo network license and g170 CC0 exception:
+https://katagotraining.org/network_license/
+CC0 1.0: https://creativecommons.org/publicdomain/zero/1.0/
