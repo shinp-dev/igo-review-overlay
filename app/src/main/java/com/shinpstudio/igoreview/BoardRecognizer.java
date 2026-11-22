@@ -72,9 +72,10 @@ final class BoardRecognizer {
     private static int classify(int rgb){
         int r=(rgb>>16)&255,g=(rgb>>8)&255,b=rgb&255;
         int min=Math.min(r,Math.min(g,b)),max=Math.max(r,Math.max(g,b));
+        // Wood grain is sometimes bright enough to resemble white stones.
+        if(r>145&&r-b>34&&r-g>8)return EMPTY;
         if(max<125&&max-min<70)return BLACK;
         if(min>160&&max-min<56)return WHITE;
-        if(r>145&&r-b>34&&r-g>8)return EMPTY;
         return UNKNOWN;
     }
     private static int pixel(ByteBuffer data,int stride,int ps,int x,int y){
