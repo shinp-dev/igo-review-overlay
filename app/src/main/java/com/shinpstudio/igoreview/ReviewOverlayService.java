@@ -59,6 +59,7 @@ public final class ReviewOverlayService extends Service {
     private final List<View> windows=new ArrayList<>();
     private final Rect frame=new Rect();
     private AppSettings settings;
+    private GoAnalysisEngine analysisEngine;
     private Context overlayContext;
     private WindowManager manager;
     private MediaProjection projection;
@@ -96,6 +97,7 @@ public final class ReviewOverlayService extends Service {
         if(consent==null){stopSelf();return START_NOT_STICKY;}
         try{
             settings=new AppSettings(this);
+            analysisEngine=new LanGoAnalysisEngine(settings);
             startForeground(1,notification());
             startCapture(consent);
             buildWindows();
@@ -351,7 +353,7 @@ public final class ReviewOverlayService extends Service {
         message("KataGoで解析中…");
         task=engine.submit(()->{
             try{
-                KataGoClient.Result computed=KataGoClient.analyze(settings,p,p.turn);
+                KataGoClient.Result computed=analysisEngine.analyze(p,p.turn);
                 ui.post(()->{
                     if(generation!=expected)return;
                     evaluated=p;result=computed;drawing.invalidate();
