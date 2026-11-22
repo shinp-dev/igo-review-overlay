@@ -16,6 +16,6 @@
 
 ## 実装上の注意
 - GTPでは局面をSGFのAB/AWとPLから復元。履歴を持たないためコウの禁着検証は限定的
-- `kata-search_analyze` 出力の `info move` を解析する。rootInfoがないので現状トップ候補の評価をステータスで代用
+- `kata-search_analyze` 出力の `info move` を解析する。rootInfo true を指定して探索ルートの勝率・目数差を取得
 - `ProcessBuilder` はAPKの `nativeLibraryDir/libkatago.so` を直接実行。これはJNIライブラリではなく名前を.soにしたPIE実行ファイル
 - Android 14以降のバイナリ実行制限、16KBページ対応、長時間連続解析について実機で確認する

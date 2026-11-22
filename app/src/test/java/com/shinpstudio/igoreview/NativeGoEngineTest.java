@@ -21,11 +21,12 @@ public class NativeGoEngineTest {
     }
     @Test public void gtPInfoParsing() {
         String lines = "info move A9 visits 90 winrate 0.75 scoreLead 4.1 order 0 pv A9 " +
-            "info move J1 visits 6 winrate 0.42 scoreLead -3.3 order 1 pv J1\nplay A9\n";
+            "info move J1 visits 6 winrate 0.42 scoreLead -3.3 order 1 pv J1 " +
+            "rootInfo visits 100 winrate 0.68 scoreLead 3.1\nplay A9\n";
         KataGoClient.Result result = NativeGoAnalysisEngine.parseAnalysis(lines, 2);
         assertEquals(2, result.moves.size());
         assertEquals(0, result.moves.get(0).index);
         assertEquals(80, result.moves.get(1).index);
-        assertEquals(0.75, result.winrate, 0.0001);
+        assertEquals(0.68, result.winrate, 0.0001);
     }
 }

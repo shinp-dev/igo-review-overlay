@@ -81,7 +81,7 @@ final class NativeGoAnalysisEngine implements GoAnalysisEngine {
         // 'play <move>' marker. Visit budget is capped by config maxTime.
         String result = command("kata-search_analyze " +
             (toPlay == BoardRecognizer.BLACK ? "B" : "W") +
-            " 1 maxmoves " + settings.candidates(), 45);
+            " 1 maxmoves " + settings.candidates() + " rootInfo true", 45);
         return parseAnalysis(result, settings.candidates());
     }
 
@@ -256,10 +256,14 @@ final class NativeGoAnalysisEngine implements GoAnalysisEngine {
         }
         if (candidates.isEmpty())
             throw new IllegalStateException("KataGoから候補手が返りませんでした");
-        KataGoClient.Candidate top = candidates.get(0);
-        // GTP move-info is per candidate; for now top candidate is a PROXY
-        // for root values, NOT exact weighted rootInfo from JSON analysis API.
-        return new KataGoClient.Result(candidates, top.winrate, top.score);
+        int rootAt = response.lastIndexOf("rootInfo ");
+        if (rootAt < 0) throw new IllegalStateException("KataGoのrootInfoを取得できませんでした");
+        String rootChunk = response.substring(rootAt);
+        double rootWin = number(rootChunk, "winrate", Double.NaN);
+        double rootScore = number(rootChunk, "scoreLead", Double.NaN);
+        if (!Double.isFinite(rootWin) || !Double.isFinite(rootScore))
+            throw new IllegalStateException("KataGoのルート評価値が不正です");
+        return new KataGoClient.Result(candidates, rootWin, rootScore);
     }
 
     private static final class ParsedMove {
