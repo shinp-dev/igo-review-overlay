@@ -20,6 +20,14 @@ final class AppSettings {
     int candidates(){return p.getInt("candidates",3);}
     int metric(){return p.getInt("metric",0);}
     int opacity(){return p.getInt("opacity",85);}
+    // 70%-150%, in 10% increments. The original display size is 100%.
+    static int normalizeFontScale(int value){
+        return Math.max(70,Math.min(150,Math.round(value/10f)*10));
+    }
+    int fontScalePercent(){return normalizeFontScale(p.getInt("font_scale_percent",100));}
+    void setFontScalePercent(int value){
+        p.edit().putInt("font_scale_percent",normalizeFontScale(value)).apply();
+    }
     boolean auto(){return p.getBoolean("auto",true);}
     boolean show(){return p.getBoolean("show",true);}
     void show(boolean b){p.edit().putBoolean("show",b).apply();}

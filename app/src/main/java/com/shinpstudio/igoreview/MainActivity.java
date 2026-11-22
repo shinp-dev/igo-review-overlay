@@ -18,7 +18,7 @@ public final class MainActivity extends Activity {
     private final int[] visitValues={50,100,200,500,1000};
     private AppSettings settings;
     private Spinner visits,candidates,metric;
-    private SeekBar opacity;
+    private SeekBar opacity,fontSize;
     private CheckBox autoRefresh;
     private TextView modelStatus;
     private Button importModelButton;
@@ -78,6 +78,21 @@ public final class MainActivity extends Activity {
             @Override public void onStopTrackingTouch(SeekBar b){}
         });
         root.addView(opacity);
+        TextView fontSizeText=new TextView(this);
+        fontSizeText.setTextColor(Color.DKGRAY);
+        root.addView(fontSizeText);
+        fontSize=new SeekBar(this);
+        fontSize.setMax(8); // 70%, 80%, ... 150%
+        fontSize.setProgress((settings.fontScalePercent()-70)/10);
+        fontSizeText.setText("評価値の文字サイズ: "+settings.fontScalePercent()+"%");
+        fontSize.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
+            @Override public void onProgressChanged(SeekBar b,int value,boolean fromUser){
+                fontSizeText.setText("評価値の文字サイズ: "+(70+value*10)+"%");
+            }
+            @Override public void onStartTrackingTouch(SeekBar b){}
+            @Override public void onStopTrackingTouch(SeekBar b){}
+        });
+        root.addView(fontSize);
         button(root,"盤面枠の位置をリセット",()->{
             settings.resetGrid();Toast.makeText(this,"次回開始時に枠を初期化します",Toast.LENGTH_SHORT).show();
         });
@@ -132,6 +147,7 @@ public final class MainActivity extends Activity {
         settings.save("", "",visitValues[visits.getSelectedItemPosition()],
             candidates.getSelectedItemPosition()+1,metric.getSelectedItemPosition(),
             opacity.getProgress()+20,autoRefresh.isChecked());
+        settings.setFontScalePercent(70+fontSize.getProgress()*10);
         Toast.makeText(this,"設定を保存しました",Toast.LENGTH_SHORT).show();
     }
     @Override protected void onActivityResult(int request,int result,Intent data){

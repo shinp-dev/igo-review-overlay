@@ -445,18 +445,31 @@ public final class ReviewOverlayService extends Service {
                 paint.setStyle(Paint.Style.FILL);paint.setTypeface(Typeface.DEFAULT_BOLD);
                 paint.setTextAlign(Paint.Align.CENTER);paint.setColor(Color.WHITE);
                 int metric=settings.metric();
+                float textScale=settings.fontScalePercent()/100f;
                 if(metric==0||metric==2){
-                    paint.setTextSize(Math.min(dp(13f),sy*.20f));
                     String win=String.format(Locale.JAPAN,"%.0f%%",move.winrate*100);
-                    canvas.drawText(win,cx,cy+(metric==2?-.025f: .07f)*sy,paint);
+                    drawFittedText(canvas,win,cx,cy+(metric==2?-.025f: .07f)*sy,
+                        Math.min(dp(13f),sy*.20f)*textScale,radius);
                 }
                 if(metric==1||metric==2){
-                    paint.setTextSize(Math.min(dp(12f),sy*.18f));
                     String score=String.format(Locale.JAPAN,"%+.1f",move.score);
-                    canvas.drawText(score,cx,cy+(metric==2?.17f:.06f)*sy,paint);
+                    drawFittedText(canvas,score,cx,cy+(metric==2?.17f:.06f)*sy,
+                        Math.min(dp(12f),sy*.18f)*textScale,radius);
                 }
             }
             canvas.restore();
+        }
+
+        // Keep large user-selected text within the marker, avoiding the
+        // 9x9 screenshot recognizer's sampling annulus outside the marker.
+        private void drawFittedText(Canvas canvas,String label,float x,float y,
+                float requestedSize,float markerRadius){
+            paint.setTextSize(requestedSize);
+            float measured=paint.measureText(label);
+            float availableWidth=markerRadius*1.9f;
+            if(measured>availableWidth&&measured>0f)
+                paint.setTextSize(requestedSize*availableWidth/measured);
+            canvas.drawText(label,x,y,paint);
         }
     }
 }
