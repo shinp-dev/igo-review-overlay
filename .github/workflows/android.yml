@@ -5,25 +5,34 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - name: Install Android SDK 36
+      - name: Install Android dependencies
         run: |
           export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          echo "SDK: $ANDROID_HOME"
           yes | "$SDKMANAGER" --licenses > /dev/null || true
-          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
-      - name: Run KataGo bridge unit tests
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "ndk;27.3.13750724"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.3.13750724" >> "$GITHUB_ENV"
+      - name: Install portable C++ prerequisites
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libeigen3-dev ninja-build
+      - name: Build original KataGo for arm64
+        run: bash tools/build_katago_android.sh
+      - name: Bundle the official small offline network
+        run: bash tools/prepare_model.sh
+      - name: Test bridge compatibility
         run: python -m unittest discover -s bridge -p "test_*.py" -v
-      - name: Build and run Android unit tests
+      - name: Compile Android application and tests
         run: ./gradlew :app:assembleDebug :app:testDebugUnitTest --no-daemon
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: igo-review-overlay-debug-apk
+          name: igo-review-overlay-offline-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk

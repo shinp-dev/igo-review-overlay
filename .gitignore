@@ -5,3 +5,7 @@ build/
 local.properties
 *.iml
 .DS_Store
+
+.native-build/
+app/src/main/jniLibs/
+app/src/main/assets/katago/model.bin.gz
