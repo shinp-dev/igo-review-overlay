@@ -13,8 +13,11 @@ jobs:
           java-version: '17'
       - name: Install Android SDK 36
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          echo "SDK: $ANDROID_HOME"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
       - name: Run KataGo bridge unit tests
         run: python -m unittest discover -s bridge -p "test_*.py" -v
       - name: Build and run Android unit tests
