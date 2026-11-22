@@ -74,7 +74,7 @@ final class NativeGoAnalysisEngine implements GoAnalysisEngine {
         if (closed) throw new IllegalStateException("解析エンジンは終了済みです");
         ensureStarted();
         File position = new File(context.getNoBackupFilesDir(), "current-9x9.sgf");
-        Files.writeString(position.toPath(), sgfFor(board, toPlay), StandardCharsets.UTF_8);
+        Files.write(position.toPath(), sgfFor(board, toPlay).getBytes(StandardCharsets.UTF_8));
         command("loadsgf " + position.getAbsolutePath(), 12);
         command("kata-set-param maxVisits " + settings.visits(), 12);
         // This command does not play a move. It emits analysis and a final
