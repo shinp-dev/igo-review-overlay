@@ -14,11 +14,14 @@ import android.graphics.Color;
 
 public final class MainActivity extends Activity {
     private static final int CAPTURE_REQUEST=1001;
+    private static final int MODEL_REQUEST=1002;
     private final int[] visitValues={50,100,200,500,1000};
     private AppSettings settings;
     private Spinner visits,candidates,metric;
     private SeekBar opacity;
     private CheckBox autoRefresh;
+    private TextView modelStatus;
+    private Button importModelButton;
 
     @Override public void onCreate(Bundle savedInstanceState){
         super.onCreate(savedInstanceState);
@@ -34,7 +37,26 @@ public final class MainActivity extends Activity {
         root.addView(heading);
         note(root,"終局後の振り返り用。囲碁クエストに重ねてKataGoの候補手を一手ずつ表示します。");
         section(root,"端末内KataGo");
-        note(root,"KataGo CPUエンジンと軽量モデルをAPKに同梱。PC・通信接続不要です。初回のみモデルの検証と読み込みが行われます。9路専用高精度モデルの対応は今後の拡張です。");
+        note(root,"KataGo CPUエンジンと公式小型モデルをAPKに同梱。PC・通信は不要です。より強い9路専用モデルを持っている場合は、追加取り込みもできます（速度は実機検証が必要）。");
+        modelStatus=new TextView(this);
+        modelStatus.setTextSize(13);
+        modelStatus.setPadding(0,dp(9),0,dp(5));
+        root.addView(modelStatus);
+        refreshModelStatus();
+        importModelButton=new Button(this);
+        importModelButton.setText("KataGoモデル (.bin.gz) を取り込む");
+        importModelButton.setAllCaps(false);
+        importModelButton.setOnClickListener(v->{
+            Intent picker=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            picker.addCategory(Intent.CATEGORY_OPENABLE);
+            picker.setType("*/*");
+            startActivityForResult(picker,MODEL_REQUEST);
+        });
+        root.addView(importModelButton,full());
+        button(root,"同梱の軽量モデルに戻す",()->{
+            settings.clearCustomModel();
+            refreshModelStatus();
+        });
         section(root,"解析設定");
         visits=spinner(root,"探索回数",new String[]{"軽量 50","軽量 100","標準 200","高精度 500","高精度 1000"},visitIndex());
         candidates=spinner(root,"候補手の数",new String[]{"1手","2手","3手","4手","5手"},settings.candidates()-1);
@@ -74,6 +96,38 @@ public final class MainActivity extends Activity {
         });
         setContentView(scroll);
     }
+    private void refreshModelStatus(){
+        if(modelStatus==null)return;
+        String label=settings.customModelLabel();
+        modelStatus.setText(label.isEmpty()?"使用モデル: 同梱の軽量g170 b6c96":
+            "使用モデル: "+label+"（外部から取り込み済み）");
+    }
+    private void importNetwork(Uri uri){
+        importModelButton.setEnabled(false);
+        modelStatus.setText("モデルを検証・保存しています…");
+        Thread worker=new Thread(()->{
+            try{
+                ModelInstaller.Result installed=ModelInstaller.importModel(this,uri);
+                settings.setCustomModel(installed.sha256,installed.label);
+                runOnUiThread(()->{
+                    if(!isDestroyed()){
+                        importModelButton.setEnabled(true);
+                        refreshModelStatus();
+                        Toast.makeText(this,"モデルを保存しました",Toast.LENGTH_LONG).show();
+                    }
+                });
+            }catch(Exception e){
+                runOnUiThread(()->{
+                    if(!isDestroyed()){
+                        importModelButton.setEnabled(true);
+                        refreshModelStatus();
+                        Toast.makeText(this,"モデルの取り込みに失敗: "+e.getMessage(),Toast.LENGTH_LONG).show();
+                    }
+                });
+            }
+        },"import-katago-model");
+        worker.setDaemon(true);worker.start();
+    }
     private void save(){
         settings.save("", "",visitValues[visits.getSelectedItemPosition()],
             candidates.getSelectedItemPosition()+1,metric.getSelectedItemPosition(),
@@ -82,6 +136,10 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onActivityResult(int request,int result,Intent data){
         super.onActivityResult(request,result,data);
+        if(request==MODEL_REQUEST&&result==RESULT_OK&&data!=null&&data.getData()!=null){
+            importNetwork(data.getData());
+            return;
+        }
         if(request==CAPTURE_REQUEST&&result==RESULT_OK&&data!=null){
             startForegroundService(new Intent(this,ReviewOverlayService.class)
                 .putExtra(ReviewOverlayService.EXTRA_CAPTURE,data));

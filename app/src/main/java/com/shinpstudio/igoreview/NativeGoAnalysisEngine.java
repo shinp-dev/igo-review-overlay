@@ -109,6 +109,13 @@ final class NativeGoAnalysisEngine implements GoAnalysisEngine {
         File nativeExecutable = new File(context.getApplicationInfo().nativeLibraryDir, "libkatago.so");
         if (!nativeExecutable.isFile())
             throw new IllegalStateException("KataGo本体がAPKにありません。ネイティブ同梱版APKを使用してください");
+        String selectedHash = settings.customModelHash();
+        if(!selectedHash.isEmpty()){
+            File selected = new File(root,"custom-model.bin.gz");
+            if(!selected.isFile() || !selectedHash.equals(sha256(selected)))
+                throw new IllegalStateException("取り込んだモデルが見つからないか破損しています");
+            network = selected;
+        }
         ProcessBuilder builder = new ProcessBuilder(nativeExecutable.getAbsolutePath(),
             "gtp", "-config", config.getAbsolutePath(), "-model", network.getAbsolutePath());
         builder.directory(root);

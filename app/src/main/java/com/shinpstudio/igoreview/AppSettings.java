@@ -9,6 +9,14 @@ final class AppSettings {
     String endpoint(){return p.getString("endpoint","");}
     String token(){return p.getString("token","");}
     int visits(){return p.getInt("visits",200);}
+    String customModelHash(){return p.getString("custom_model_sha256","");}
+    String customModelLabel(){return p.getString("custom_model_label","");}
+    void setCustomModel(String sha,String label){
+        p.edit().putString("custom_model_sha256",sha).putString("custom_model_label",label).apply();
+    }
+    void clearCustomModel(){
+        p.edit().remove("custom_model_sha256").remove("custom_model_label").apply();
+    }
     int candidates(){return p.getInt("candidates",3);}
     int metric(){return p.getInt("metric",0);}
     int opacity(){return p.getInt("opacity",85);}
