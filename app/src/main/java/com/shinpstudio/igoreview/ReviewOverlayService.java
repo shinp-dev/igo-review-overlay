@@ -369,6 +369,7 @@ public final class ReviewOverlayService extends Service {
         GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(radius);return d;
     }
     private int dp(int x){return Math.round(x*overlayContext.getResources().getDisplayMetrics().density);}
+    private float dp(float x){return x*overlayContext.getResources().getDisplayMetrics().density;}
     private static int clamp(int v,int min,int max){return Math.max(min,Math.min(max,v));}
 
     @Override public void onConfigurationChanged(Configuration c){
