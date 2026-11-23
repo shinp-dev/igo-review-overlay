@@ -96,7 +96,7 @@ public final class MainActivity extends Activity {
         button(root,"盤面枠の位置をリセット",()->{
             settings.resetGrid();Toast.makeText(this,"次回開始時に枠を初期化します",Toast.LENGTH_SHORT).show();
         });
-        note(root,"開始後、左上・右下のハンドルを9路盤の最外交点に合わせてください。右側余白の色付き帯をタップすると評価値をオン／オフできます。");
+        note(root,"開始後、「枠調整」で左上・右下のハンドルを9路盤の外周交点に合わせ、「調整完了」を押してください。盤面上の緑バーで評価値をオン／オフできます。");
         button(root,"設定を保存",this::save);
         button(root,"盤面解析を開始",()->{
             save();

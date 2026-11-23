@@ -5,7 +5,9 @@ set -euo pipefail
 # This small model is the offline baseline; 9x9-specialized model can be added
 # as a user-imported optional network after on-device speed/accuracy testing.
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OUT="$ROOT/app/src/main/assets/katago/model.bin.gz"
+# Android's asset merger expands files ending in .gz and removes the suffix.
+# Keep the original gzip bytes for the runtime SHA-256 check.
+OUT="$ROOT/app/src/main/assets/katago/model.bin.gz.asset"
 URL="https://katagoarchive.org/g170/neuralnets/g170-b6c96-s175395328-d26788732.bin.gz"
 SHA256="f57fddf4672364d385d6ab177364ab819810d1123e229cb2649c4f337a2160b1"
 mkdir -p "$(dirname "$OUT")"

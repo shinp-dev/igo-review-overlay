@@ -96,7 +96,7 @@ final class NativeGoAnalysisEngine implements GoAnalysisEngine {
         copyAsset("katago/gtp.cfg", config);
         if (!network.isFile() || !NETWORK_SHA256.equals(sha256(network))) {
             File staging = new File(root, "model.partial");
-            copyAsset("katago/model.bin.gz", staging);
+            copyAsset("katago/model.bin.gz.asset", staging);
             if (!NETWORK_SHA256.equals(sha256(staging))) {
                 staging.delete();
                 throw new IllegalStateException("KataGoモデルのSHA-256検証に失敗しました");

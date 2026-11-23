@@ -7,8 +7,20 @@ import java.util.Arrays;
 /** 9x9 board detector. Frame edges MUST align with the four outermost intersections. */
 final class BoardRecognizer {
     static final int EMPTY=0,BLACK=1,WHITE=2,UNKNOWN=3;
-    private static final int[][] OFFSETS={{33,0},{-33,0},{0,33},{0,-33},
-        {23,23},{-23,23},{23,-23},{-23,-23}};
+    // Sample around the stone beyond the last-move ring and away from the grid
+    // lines, including the calibration outline drawn on the outermost lines.
+    private static final int[][] OFFSETS = {
+        {30,13}, {30,-13}, {-30,13}, {-30,-13},
+        {13,30}, {13,-30}, {-13,30}, {-13,-30}
+    };
+    static final class RecognitionException extends IllegalArgumentException {
+        final String detail;
+
+        RecognitionException(String message, String detail) {
+            super(message);
+            this.detail = detail;
+        }
+    }
     static final class Position {
         final int[] stones;
         final int last,turn;
@@ -17,21 +29,32 @@ final class BoardRecognizer {
         boolean same(Position p){return sameStones(p)&&turn==p.turn;}
     }
     static Position read(Image image,Rect frame){
-        if(frame.width()<240||frame.height()<240||Math.abs(frame.width()-frame.height())>frame.width()*.07f
-            ||frame.left<0||frame.top<0||frame.right>=image.getWidth()||frame.bottom>=image.getHeight())
-            throw new IllegalArgumentException("盤面枠を9路の外周交点に合わせてください");
         Image.Plane plane=image.getPlanes()[0];
-        ByteBuffer data=plane.getBuffer();
-        int stride=plane.getRowStride(),pixelStride=plane.getPixelStride();
-        float stepX=frame.width()/8f,stepY=frame.height()/8f;
+        return read(plane.getBuffer(), plane.getRowStride(), plane.getPixelStride(),
+            image.getWidth(), image.getHeight(), frame.left, frame.top, frame.right, frame.bottom);
+    }
+    static Position read(ByteBuffer data, int stride, int pixelStride, int width, int height,
+            int left, int top, int right, int bottom) {
+        int boardWidth = right - left, boardHeight = bottom - top;
+        float stepX = boardWidth / 8f, stepY = boardHeight / 8f;
+        int marginX = Math.round(stepX * .30f), marginY = Math.round(stepY * .30f);
+        if (boardWidth < 240 || boardHeight < 240 || Math.abs(boardWidth - boardHeight) > boardWidth * .07f
+                || left < marginX || top < marginY || right + marginX >= width || bottom + marginY >= height) {
+            throw new RecognitionException("盤面枠を9路の外周交点に合わせてください",
+                "frame does not fit the image with sampling margins " + marginX + "x" + marginY);
+        }
         int[] board=new int[81];int markers=0,markedIndex=-1,markedColor=UNKNOWN,count=0;
         for(int row=0;row<9;row++) for(int col=0;col<9;col++){
-            int cx=Math.round(frame.left+stepX*col),cy=Math.round(frame.top+stepY*row);
+            int cx=Math.round(left+stepX*col),cy=Math.round(top+stepY*row);
             int[] votes=new int[4];
             for(int[] delta:OFFSETS) votes[classify(pixel(data,stride,pixelStride,
                 cx+Math.round(stepX*delta[0]/100f),cy+Math.round(stepY*delta[1]/100f)))]++;
             int color=votes[BLACK]>=6?BLACK:votes[WHITE]>=6?WHITE:votes[EMPTY]>=6?EMPTY:UNKNOWN;
-            if(color==UNKNOWN) throw new IllegalArgumentException("石の認識に失敗しました。枠を調整してください");
+            if (color == UNKNOWN) {
+                throw new RecognitionException("盤面を読み取れません。枠を外周交点に合わせてください",
+                    "column=" + (col + 1) + ", row=" + (row + 1) + ", votes(empty/black/white/unknown)="
+                        + Arrays.toString(votes));
+            }
             board[row*9+col]=color;
             if(color!=EMPTY){
                 count++;
