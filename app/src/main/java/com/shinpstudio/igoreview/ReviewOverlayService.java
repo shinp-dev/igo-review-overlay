@@ -266,7 +266,7 @@ public final class ReviewOverlayService extends Service {
         TextView knob=new TextView(overlayContext);
         knob.setText(upper?"↖":"↘");knob.setTextSize(17);
         knob.setTextColor(Color.WHITE);knob.setGravity(Gravity.CENTER);
-        knob.setBackground(round(0xff177fa6,dp(9)));
+        knob.setBackground(round(0xff137365,dp(9)));
         knob.setVisibility(View.GONE);
         if(upper)upperHandle=knob;else lowerHandle=knob;
         knob.setContentDescription(upper?"左上交点を移動":"右下交点を移動");
@@ -477,7 +477,7 @@ public final class ReviewOverlayService extends Service {
             getLocationOnScreen(origin);
             canvas.save();canvas.translate(-origin[0],-origin[1]);
             paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(1.5f));
-            paint.setColor(0x8835b6e4);
+            paint.setColor(0xff40e080);
             canvas.drawRect(frame,paint);
             canvas.restore();
             if(!shown||result==null||evaluated==null)return;
