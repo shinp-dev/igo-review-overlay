@@ -54,7 +54,7 @@ public final class MainActivity extends Activity {
             startActivityForResult(picker,MODEL_REQUEST);
         });
         root.addView(importModelButton,full());
-        button(root,"同梱の軽量モデルに戻す",()->{
+        button(root,"取り込みモデルを解除（軽量に戻す）",()->{
             settings.clearCustomModel();
             refreshModelPicker();
         });
