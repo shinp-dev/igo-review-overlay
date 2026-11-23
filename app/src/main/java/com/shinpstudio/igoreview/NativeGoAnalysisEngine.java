@@ -156,7 +156,7 @@ final class NativeGoAnalysisEngine implements GoAnalysisEngine {
         int normalized=AppSettings.normalizeSearchThreads(threads);
         String setting="numSearchThreads = "+normalized;
         String replaced=baseConfig.replaceFirst("(?m)^\\s*numSearchThreads\\s*=.*$",setting);
-        return replaced.equals(baseConfig)?baseConfig+"\\n"+setting+"\\n":replaced;
+        return replaced.equals(baseConfig)?baseConfig+"\n"+setting+"\n":replaced;
     }
 
     private File installBundledModel(File root,String name,String asset,String expected) throws Exception {
