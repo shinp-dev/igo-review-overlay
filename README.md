@@ -5,9 +5,9 @@
 ## 現在の実装（2026-11-22）
 
 - 9×9盤面認識、最終着手の丸印から手番判定、「枠調整」中だけ表示する左上／右下のドラッグハンドル（解析中は非表示）
-- 候補手1〜5、勝率／目数差、探索回数50/100/200/500/1000、透明度、評価値の文字サイズ70〜150%（初期100%）、手動・自動再解析
+- 候補手1〜5、勝率／目数差、探索回数50/100/200/500/1000、**オーバーヒート設定（探索2/4/6スレッド）**、透明度、評価値の文字サイズ70〜150%（初期100%）、手動・自動再解析
 - **端末内KataGo CPUエンジン（GTP）**：公式KataGo v1.17.2をarm64-v8a向けに再現可能な手順でコンパイルし、ネイティブライブラリの格納先に実行ファイルとして同梱
-- **公式小型モデル** `g170-b6c96-s175395328-d26788732`（CC0）をダウンロード時にSHA-256検証してAPKに同梱
+- **モデル切替**：軽量`g170-b6c96-s175395328-d26788732`（CC0）／9路専用`kata9x9-b18c384nbt-20231025`（KataGo Network License）／手動取り込みモデル。両標準モデルをSHA-256検証してAPKに同梱（9路専用は約98MB増）
 - SGFを通じた9路・中国ルール・コミ7の局面設定。KataGoのGTP `kata-search_analyze` による探索と解析表示
 - 画面共有・KataGoの終了通知、解析結果の世代管理（古い盤面の候補手を出さない）
 - JavaのSGF/GTP解析テスト、Pythonの旧ブリッジテスト、GitHub Actionsビルド
@@ -43,7 +43,7 @@ GitHub Actionsの `Android CI` が成功した場合は、成果物の `igo-revi
 - 黒／白の石と最終着手マークは画面の色・形状に依存。囲碁クエストのUI変更時は調整が必要です。実機未検証です。
 - 現在は過去の着手履歴を復元しません。単独局面の**コウ・スーパーコウの履歴**は完全には再現できません。局面からの評価を参考値として扱ってください。
 - GTP候補手の数値は**次の手番側**の評価です。ステータスの勝率／目数差にはGTPの `rootInfo true` で取得した探索全体の評価を使います。
-- 同梱モデルは軽量なg170 b6c96で、**KataGoの9路専用高精度モデルではありません**。9路専用モデルは精度と端末内性能を比較してから拡張する予定です。
+- 標準は軽量なg170 b6c96ですが、9路専用b18モデルも設定から選べます。端末内での速度・温度・メモリ負荷は未測定です。オーバーヒート設定（4/6スレッド）は速度向上を保証しません。Android側の熱制御を回避する機能ではありません。
 - 19路、棋譜保存、悪手回数、形勢グラフ、一括解析は初期版に含みません。
 - 対局中のソフト使用のためではなく、終局後の振り返り用です。
 - 旧LAN版は参考用に `LanGoAnalysisEngine` と `bridge/` を残していますが、通常起動では使いません。
@@ -51,7 +51,8 @@ GitHub Actionsの `Android CI` が成功した場合は、成果物の `igo-revi
 ## 実装・ライセンス
 
 - KataGo: upstream `lightvector/KataGo` v1.17.2, commit `6a1fc5de9fc253723ac475a0683bf0b9d9b7bd19`。KataGo本体はMITベース＋同梱依存の個別ライセンス。LICENSEを `app/src/main/assets/licenses/KataGo-LICENSE.txt` に同梱します。
-- g170モデル: 公式配布ファイル、SHA-256 `f57fddf4672364d385d6ab177364ab819810d1123e229cb2649c4f337a2160b1`。古いg170モデルはCC0例外の対象であり、最新のKataGo全モデルに同じ条件が適用されるわけではありません。
+- g170モデル: 公式配布ファイル、SHA-256 `f57fddf4672364d385d6ab177364ab819810d1123e229cb2649c4f337a2160b1`。古いg170モデルはCC0例外の対象です。
+- 9路専用モデル: 公式[KataGo 9x9リリース](https://github.com/lightvector/KataGo/releases/tag/v1.13.2-kata9x9)の`kata9x9-b18c384nbt-20231025.bin.gz`、SHA-256 `a1298ce1adc1dad7bd868ca962b2384cc8388ed373a00e6bae1114fa6f9e2d61`、[Neural Network License](https://katagotraining.org/network_license/)（アプリの`assets/licenses/KataGo-NETWORK-LICENSE.txt`に告知同梱）。
 - 本リポジトリ固有のコード: MIT（[LICENSE](LICENSE)）。
 - [KataGo公式コンパイルガイド](https://github.com/lightvector/KataGo/blob/master/Compiling.md)
 - [KataGoのGTP拡張仕様](https://github.com/lightvector/KataGo/blob/master/docs/GTP_Extensions.md)
