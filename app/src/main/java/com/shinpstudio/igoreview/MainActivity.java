@@ -17,7 +17,7 @@ public final class MainActivity extends Activity {
     private static final int MODEL_REQUEST=1002;
     private final int[] visitValues={50,100,200,500,1000};
     private AppSettings settings;
-    private Spinner visits,candidates,metric;
+    private Spinner visits,candidates,metric,model,power;
     private SeekBar opacity,fontSize;
     private CheckBox autoRefresh;
     private TextView modelStatus;
@@ -37,7 +37,8 @@ public final class MainActivity extends Activity {
         root.addView(heading);
         note(root,"終局後の振り返り用。囲碁クエストに重ねてKataGoの候補手を一手ずつ表示します。");
         section(root,"端末内KataGo");
-        note(root,"KataGo CPUエンジンと公式小型モデルをAPKに同梱。PC・通信は不要です。より強い9路専用モデルを持っている場合は、追加取り込みもできます（速度は実機検証が必要）。");
+        note(root,"KataGo CPUエンジン、軽量モデル、9路専用モデルをAPKに同梱。PC・通信は不要です。9路専用モデルは棋力重視ですが、処理時間・発熱・メモリ使用量が増える可能性があります。");
+        model=spinner(root,"使用するAIモデル",modelOptions(),settings.modelChoice());
         modelStatus=new TextView(this);
         modelStatus.setTextSize(13);
         modelStatus.setPadding(0,dp(9),0,dp(5));
@@ -53,11 +54,15 @@ public final class MainActivity extends Activity {
             startActivityForResult(picker,MODEL_REQUEST);
         });
         root.addView(importModelButton,full());
-        button(root,"同梱の軽量モデルに戻す",()->{
+        button(root,"取り込みモデルを解除（軽量に戻す）",()->{
             settings.clearCustomModel();
-            refreshModelStatus();
+            refreshModelPicker();
         });
         section(root,"解析設定");
+        power=spinner(root,"オーバーヒート設定（探索スレッド数）",
+            new String[]{"通常：2スレッド","高負荷：4スレッド","最大負荷：6スレッド"},
+            settings.searchThreads()==6?2:settings.searchThreads()==4?1:0);
+        note(root,"高負荷・最大負荷は速度向上を保証しません。熱・電池消費が増える可能性があります。設定は次回の解析開始時に反映されます。");
         visits=spinner(root,"探索回数",new String[]{"軽量 50","軽量 100","標準 200","高精度 500","高精度 1000"},visitIndex());
         candidates=spinner(root,"候補手の数",new String[]{"1手","2手","3手","4手","5手"},settings.candidates()-1);
         metric=spinner(root,"表示する評価値",new String[]{"勝率","目数差","勝率＋目数差"},settings.metric());
@@ -114,8 +119,22 @@ public final class MainActivity extends Activity {
     private void refreshModelStatus(){
         if(modelStatus==null)return;
         String label=settings.customModelLabel();
-        modelStatus.setText(label.isEmpty()?"使用モデル: 同梱の軽量g170 b6c96":
-            "使用モデル: "+label+"（外部から取り込み済み）");
+        String active=settings.modelChoice()==1?"同梱の9路専用 b18":settings.modelChoice()==2?
+            label+"（取り込み済み）":"同梱の軽量 g170 b6c96";
+        modelStatus.setText("選択中: "+active);
+    }
+    private String[] modelOptions(){
+        if(settings.customModelHash().isEmpty())
+            return new String[]{"軽量 g170 b6c96（高速）","9路専用 b18c384nbt（高精度・高負荷）"};
+        return new String[]{"軽量 g170 b6c96（高速）","9路専用 b18c384nbt（高精度・高負荷）",
+            "取り込みモデル: "+settings.customModelLabel()};
+    }
+    private void refreshModelPicker(){
+        if(model!=null){
+            model.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,modelOptions()));
+            model.setSelection(settings.modelChoice());
+        }
+        refreshModelStatus();
     }
     private void importNetwork(Uri uri){
         importModelButton.setEnabled(false);
@@ -127,7 +146,7 @@ public final class MainActivity extends Activity {
                 runOnUiThread(()->{
                     if(!isDestroyed()){
                         importModelButton.setEnabled(true);
-                        refreshModelStatus();
+                        refreshModelPicker();
                         Toast.makeText(this,"モデルを保存しました",Toast.LENGTH_LONG).show();
                     }
                 });
@@ -148,6 +167,9 @@ public final class MainActivity extends Activity {
             candidates.getSelectedItemPosition()+1,metric.getSelectedItemPosition(),
             opacity.getProgress()+20,autoRefresh.isChecked());
         settings.setFontScalePercent(70+fontSize.getProgress()*10);
+        settings.setSearchThreads(new int[]{2,4,6}[power.getSelectedItemPosition()]);
+        settings.setModelChoice(model.getSelectedItemPosition());
+        refreshModelStatus();
         Toast.makeText(this,"設定を保存しました",Toast.LENGTH_SHORT).show();
     }
     @Override protected void onActivityResult(int request,int result,Intent data){

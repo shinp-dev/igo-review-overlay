@@ -3,6 +3,20 @@ import static org.junit.Assert.*;
 import org.junit.Test;
 
 public class NativeGoEngineTest {
+    @Test public void searchThreadsConfig(){
+        String base="maxVisits = 200\nnumSearchThreads = 2\nmaxTime = 20\n";
+        for(int count:new int[]{2,4,6}){
+            String updated=NativeGoAnalysisEngine.configureSearchThreads(base,count);
+            assertTrue(updated.contains("numSearchThreads = "+count+"\n"));
+            assertEquals(1, updated.split("numSearchThreads =",-1).length-1);
+            assertTrue(updated.contains("maxTime = 20"));
+        }
+        assertTrue(NativeGoAnalysisEngine.configureSearchThreads(base,32)
+            .contains("numSearchThreads = 2"));
+        String without="maxVisits = 200\n";
+        String appended=NativeGoAnalysisEngine.configureSearchThreads(without,4);
+        assertEquals("maxVisits = 200\nnumSearchThreads = 4\n",appended);
+    }
     @Test public void sgfEmptyBlack() {
         int[] grid = new int[81];
         BoardRecognizer.Position p = new BoardRecognizer.Position(grid, -1, BoardRecognizer.BLACK);

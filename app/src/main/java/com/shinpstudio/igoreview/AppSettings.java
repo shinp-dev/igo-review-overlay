@@ -9,13 +9,27 @@ final class AppSettings {
     String endpoint(){return p.getString("endpoint","");}
     String token(){return p.getString("token","");}
     int visits(){return p.getInt("visits",200);}
+    static int normalizeSearchThreads(int value){return value==4||value==6?value:2;}
+    int searchThreads(){return normalizeSearchThreads(p.getInt("search_threads",2));}
+    void setSearchThreads(int value){p.edit().putInt("search_threads",normalizeSearchThreads(value)).apply();}
+    // 0=small bundled network, 1=dedicated 9x9 bundled network, 2=user-imported network.
+    int modelChoice(){
+        int choice=p.getInt("model_choice",customModelHash().isEmpty()?0:2);
+        return choice>=0&&choice<=2&&(choice!=2||!customModelHash().isEmpty())?choice:0;
+    }
+    void setModelChoice(int choice){
+        if(choice<0||choice>2||(choice==2&&customModelHash().isEmpty()))choice=0;
+        p.edit().putInt("model_choice",choice).apply();
+    }
     String customModelHash(){return p.getString("custom_model_sha256","");}
     String customModelLabel(){return p.getString("custom_model_label","");}
     void setCustomModel(String sha,String label){
-        p.edit().putString("custom_model_sha256",sha).putString("custom_model_label",label).apply();
+        p.edit().putString("custom_model_sha256",sha).putString("custom_model_label",label)
+            .putInt("model_choice",2).apply();
     }
     void clearCustomModel(){
-        p.edit().remove("custom_model_sha256").remove("custom_model_label").apply();
+        p.edit().remove("custom_model_sha256").remove("custom_model_label")
+            .putInt("model_choice",0).apply();
     }
     int candidates(){return p.getInt("candidates",3);}
     int metric(){return p.getInt("metric",0);}

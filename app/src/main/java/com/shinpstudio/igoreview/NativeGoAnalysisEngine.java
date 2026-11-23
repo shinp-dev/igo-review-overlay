@@ -31,6 +31,8 @@ final class NativeGoAnalysisEngine implements GoAnalysisEngine {
     private static final String TAG = "NativeKataGo";
     private static final String NETWORK_SHA256 =
         "f57fddf4672364d385d6ab177364ab819810d1123e229cb2649c4f337a2160b1";
+    private static final String NETWORK_9X9_SHA256 =
+        "a1298ce1adc1dad7bd868ca962b2384cc8388ed373a00e6bae1114fa6f9e2d61";
     private static final Pattern INFO = Pattern.compile("(?:^|\\s)info\\s+move\\s+");
     private static final Pattern VALUE = Pattern.compile("(?:^|\\s)%s\\s+([^\\s]+)");
     private final Context context;
@@ -94,28 +96,26 @@ final class NativeGoAnalysisEngine implements GoAnalysisEngine {
         File config = new File(root, "gtp.cfg");
         File network = new File(root, "model.bin.gz");
         copyAsset("katago/gtp.cfg", config);
-        if (!network.isFile() || !NETWORK_SHA256.equals(sha256(network))) {
-            File staging = new File(root, "model.partial");
-            copyAsset("katago/model.bin.gz.asset", staging);
-            if (!NETWORK_SHA256.equals(sha256(staging))) {
-                staging.delete();
-                throw new IllegalStateException("KataGoモデルのSHA-256検証に失敗しました");
-            }
-            if (network.exists() && !network.delete())
-                throw new IllegalStateException("古いKataGoモデルを更新できません");
-            if (!staging.renameTo(network))
-                throw new IllegalStateException("KataGoモデルを保存できません");
+        // Never modify the APK's config; override its thread count in a private copy.
+        byte[] configBytes = Files.readAllBytes(config.toPath());
+        String configured = configureSearchThreads(
+            new String(configBytes, StandardCharsets.UTF_8), settings.searchThreads());
+        Files.write(config.toPath(), configured.getBytes(StandardCharsets.UTF_8));
+        int modelChoice=settings.modelChoice();
+        if(modelChoice==0){
+            network=installBundledModel(root, "model.bin.gz",
+                "katago/model.bin.gz.asset", NETWORK_SHA256);
+        }else if(modelChoice==1){
+            network=installBundledModel(root, "model-9x9.bin.gz",
+                "katago/kata9x9.bin.gz.asset", NETWORK_9X9_SHA256);
+        }else{
+            network=new File(root, "custom-model.bin.gz");
+            if(!network.isFile()||!settings.customModelHash().equals(sha256(network)))
+                throw new IllegalStateException("取り込んだモデルが見つからないか破損しています");
         }
         File nativeExecutable = new File(context.getApplicationInfo().nativeLibraryDir, "libkatago.so");
         if (!nativeExecutable.isFile())
             throw new IllegalStateException("KataGo本体がAPKにありません。ネイティブ同梱版APKを使用してください");
-        String selectedHash = settings.customModelHash();
-        if(!selectedHash.isEmpty()){
-            File selected = new File(root,"custom-model.bin.gz");
-            if(!selected.isFile() || !selectedHash.equals(sha256(selected)))
-                throw new IllegalStateException("取り込んだモデルが見つからないか破損しています");
-            network = selected;
-        }
         ProcessBuilder builder = new ProcessBuilder(nativeExecutable.getAbsolutePath(),
             "gtp", "-config", config.getAbsolutePath(), "-model", network.getAbsolutePath());
         builder.directory(root);
@@ -150,6 +150,31 @@ final class NativeGoAnalysisEngine implements GoAnalysisEngine {
             stopProcess();
             throw e;
         }
+    }
+
+    static String configureSearchThreads(String baseConfig, int threads) {
+        int normalized=AppSettings.normalizeSearchThreads(threads);
+        String setting="numSearchThreads = "+normalized;
+        String key= "(?m)^\\s*numSearchThreads\\s*=.*$";
+        if(Pattern.compile(key).matcher(baseConfig).find())
+            return baseConfig.replaceFirst(key,setting);
+        return baseConfig+(baseConfig.endsWith("\n")?"":"\n")+setting+"\n";
+    }
+
+    private File installBundledModel(File root,String name,String asset,String expected) throws Exception {
+        File output=new File(root,name);
+        if(output.isFile()&&expected.equals(sha256(output)))return output;
+        File staging=new File(root,name+".partial");
+        try {
+            copyAsset(asset,staging);
+            if(!expected.equals(sha256(staging)))
+                throw new IllegalStateException("KataGoモデルのSHA-256検証に失敗しました: "+name);
+            if(output.exists()&&!output.delete())
+                throw new IllegalStateException("古いKataGoモデルを更新できません: "+name);
+            if(!staging.renameTo(output))
+                throw new IllegalStateException("KataGoモデルを保存できません: "+name);
+            return output;
+        } finally { staging.delete(); }
     }
 
     private void copyAsset(String asset, File output) throws Exception {
