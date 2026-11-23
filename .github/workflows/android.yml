@@ -31,6 +31,11 @@ jobs:
         run: python -m unittest discover -s bridge -p "test_*.py" -v
       - name: Compile Android application and tests
         run: ./gradlew :app:assembleDebug :app:testDebugUnitTest --no-daemon
+      - name: Verify offline APK contents
+        run: |
+          apk=app/build/outputs/apk/debug/app-debug.apk
+          unzip -p "$apk" assets/katago/model.bin.gz.asset | cmp app/src/main/assets/katago/model.bin.gz.asset -
+          unzip -Z1 "$apk" | grep -Fx lib/arm64-v8a/libkatago.so
       - uses: actions/upload-artifact@v4
         if: success()
         with:
