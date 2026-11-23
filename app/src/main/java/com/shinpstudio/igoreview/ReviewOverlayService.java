@@ -45,8 +45,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 /**
- * Foreground screen capture service with separate pass-through drawing window and
- * a narrow touchable strip to the RIGHT of the 9x9 grid.
+ * Foreground screen capture service with a pass-through drawing window and
+ * separate touch controls.
  */
 public final class ReviewOverlayService extends Service {
     static final String EXTRA_CAPTURE="capture_data";
@@ -58,6 +58,8 @@ public final class ReviewOverlayService extends Service {
     private final ExecutorService engine=Executors.newSingleThreadExecutor();
     private final List<View> windows=new ArrayList<>();
     private final Rect frame=new Rect();
+    // Publish a new snapshot after calibration. Null pauses recognition.
+    private volatile Rect captureFrame;
     private AppSettings settings;
     private GoAnalysisEngine analysisEngine;
     private Context overlayContext;
@@ -78,12 +80,14 @@ public final class ReviewOverlayService extends Service {
     private int confirmations,misses,turnOverride=BoardRecognizer.UNKNOWN;
     private int generation;
     private Future<?> task;
-    private boolean dragging,adjusting,shown;
+    private boolean adjusting,shown;
     private long lastSample;
     private final MediaProjection.Callback projectionCallback=new MediaProjection.Callback(){
         @Override public void onStop(){ui.post(ReviewOverlayService.this::stopSelf);}
         @Override public void onCapturedContentResize(int width,int height){
             if(width!=screenWidth||height!=screenHeight){
+                Log.w(TAG,"Captured content resized to "+width+"x"+height
+                    +" (expected "+screenWidth+"x"+screenHeight+")");
                 ui.post(()->{message("画面サイズが変わりました。解析を再開始してください");stopSelf();});
             }
         }
@@ -102,6 +106,7 @@ public final class ReviewOverlayService extends Service {
             startForeground(1,notification());
             startCapture(consent);
             buildWindows();
+            captureFrame=new Rect(frame);
         }catch(Exception error){
             Log.e(TAG,"Cannot start review overlay",error);
             stopSelf();
@@ -140,6 +145,7 @@ public final class ReviewOverlayService extends Service {
             DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,reader.getSurface(),null,captureHandler);
         if(virtualDisplay==null)throw new IllegalStateException("仮想画面を作成できません");
         reader.setOnImageAvailableListener(this::readFrame,captureHandler);
+        Log.i(TAG,"Screen capture started: "+screenWidth+"x"+screenHeight+", frame="+frame.toShortString());
     }
 
     private void buildWindows(){
@@ -165,7 +171,7 @@ public final class ReviewOverlayService extends Service {
             shown=!shown;settings.show(shown);
             updateToggle();drawing.invalidate();
             if(shown&&stable!=null&&(result==null||!stable.same(evaluated)))analyze(stable);
-            if(!shown)message("評価値は非表示（上の緑バーをタップで再表示）");
+            if(!shown&&stable!=null&&stable.turn!=BoardRecognizer.UNKNOWN)showRecognizedTurn(stable.turn);
         });
         toggleParams=params(dp(126),dp(23),"IgoAboveBoardToggle");
         positionToggle();
@@ -211,14 +217,18 @@ public final class ReviewOverlayService extends Service {
         adjust.setAllCaps(false);adjust.setText("枠調整");adjust.setTextSize(11);
         adjust.setOnClickListener(v->{
             adjusting=!adjusting;
+            captureFrame=null;
             upperHandle.setVisibility(adjusting?View.VISIBLE:View.GONE);
             lowerHandle.setVisibility(adjusting?View.VISIBLE:View.GONE);
             adjust.setText(adjusting?"調整完了":"枠調整");
+            misses=0;
             clearPosition();
             if(adjusting)message("左右のハンドルを外周交点に合わせてください");
             else{
                 settings.saveGrid(frame,screenWidth,screenHeight);
                 message("盤面枠を保存しました。認識を再開します");
+                captureFrame=new Rect(frame);
+                Log.i(TAG,"Board calibrated: "+frame.toShortString());
             }
         });
         row.addView(adjust,buttonWidth());
@@ -267,7 +277,7 @@ public final class ReviewOverlayService extends Service {
             @Override public boolean onTouch(View v,MotionEvent event){
                 switch(event.getActionMasked()){
                     case MotionEvent.ACTION_DOWN:
-                        dragging=true;downX=event.getRawX();downY=event.getRawY();
+                        downX=event.getRawX();downY=event.getRawY();
                         oldX=upper?frame.left:frame.right;oldY=upper?frame.top:frame.bottom;
                         return true;
                     case MotionEvent.ACTION_MOVE:
@@ -286,7 +296,6 @@ public final class ReviewOverlayService extends Service {
                         return true;
                     case MotionEvent.ACTION_UP:
                     case MotionEvent.ACTION_CANCEL:
-                        dragging=false;
                         settings.saveGrid(frame,screenWidth,screenHeight);
                         return true;
                     default:return true;
@@ -325,23 +334,35 @@ public final class ReviewOverlayService extends Service {
         }
     }
     private void readFrame(ImageReader source){
+        Rect snapshot=captureFrame;
         try(Image image=source.acquireLatestImage()){
-            if(image==null||dragging||adjusting)return;
+            if(image==null||snapshot==null)return;
             long now=SystemClock.elapsedRealtime();
             if(now-lastSample<TICK_MS)return;
             lastSample=now;
-            Rect snapshot=new Rect(frame);
             try{
                 BoardRecognizer.Position p=BoardRecognizer.read(image,snapshot);
-                ui.post(()->{if(!dragging&&snapshot.equals(frame))received(p);});
-            }catch(IllegalArgumentException e){
-                ui.post(()->{if(++misses>=6){clearPosition();message(e.getMessage());}});
-            }catch(RuntimeException e){
-                Log.w(TAG,"Board capture failed",e);
+                ui.post(()->{if(snapshot==captureFrame)received(p);});
+            }catch(BoardRecognizer.RecognitionException e){
+                String detail="image="+image.getWidth()+"x"+image.getHeight()
+                    +", frame="+snapshot.toShortString()+", "+e.detail;
+                frameRejected(snapshot,e.getMessage(),detail,null);
             }
         }catch(RuntimeException e){
-            Log.w(TAG,"Image read failure",e);
+            frameRejected(snapshot,"画面の取得に失敗しました。画面共有を再開始してください",
+                "Cannot read captured image",e);
         }
+    }
+    private void frameRejected(Rect snapshot,String text,String detail,RuntimeException error){
+        if(snapshot==null)return;
+        ui.post(()->{
+            if(snapshot!=captureFrame)return;
+            pending=null;
+            confirmations=0;
+            if(++misses==1)Log.w(TAG,detail,error);
+            if(misses==6)clearPosition();
+            if(misses>=6)message(text);
+        });
     }
     private void received(BoardRecognizer.Position p){
         misses=0;
@@ -354,6 +375,7 @@ public final class ReviewOverlayService extends Service {
         if(turn==BoardRecognizer.UNKNOWN){
             // Never leave scores from a DIFFERENT position on screen.
             if(!p.sameStones(stable)){
+                Log.d(TAG,"Board recognized; turn unknown");
                 generation++;
                 if(task!=null)task.cancel(true);
                 result=null;evaluated=null;drawing.invalidate();
@@ -365,12 +387,18 @@ public final class ReviewOverlayService extends Service {
         BoardRecognizer.Position next=new BoardRecognizer.Position(p.stones,p.last,turn);
         if(next.same(stable))return;
         stable=next;
+        Log.d(TAG,"Board recognized: last="+(p.last<0?"none":(p.last%9+1)+","+(p.last/9+1))
+            +", turn="+(turn==BoardRecognizer.BLACK?"black":"white"));
         if(settings.auto()&&shown)analyze(next);
         else {
             generation++;if(task!=null)task.cancel(true);
             result=null;evaluated=null;drawing.invalidate();
-            message(turn==BoardRecognizer.BLACK?"黒番 · 自動解析停止中":"白番 · 自動解析停止中");
+            showRecognizedTurn(turn);
         }
+    }
+    private void showRecognizedTurn(int turn){
+        String side=turn==BoardRecognizer.BLACK?"黒番":"白番";
+        message("盤面認識済み · "+side+(shown?" · 自動解析停止中":" · 評価表示 OFF"));
     }
     private void analyze(BoardRecognizer.Position p){
         generation++;
@@ -420,6 +448,7 @@ public final class ReviewOverlayService extends Service {
         }
     }
     @Override public void onDestroy(){
+        captureFrame=null;
         generation++;if(task!=null)task.cancel(true);engine.shutdownNow();
         // A blocking GTP read must not run on the main thread during teardown.
         // Stop the native process from the existing worker when possible.
