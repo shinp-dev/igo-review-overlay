@@ -13,6 +13,9 @@ public class NativeGoEngineTest {
         }
         assertTrue(NativeGoAnalysisEngine.configureSearchThreads(base,32)
             .contains("numSearchThreads = 2"));
+        String without="maxVisits = 200\n";
+        String appended=NativeGoAnalysisEngine.configureSearchThreads(without,4);
+        assertEquals("maxVisits = 200\nnumSearchThreads = 4\n",appended);
     }
     @Test public void sgfEmptyBlack() {
         int[] grid = new int[81];
