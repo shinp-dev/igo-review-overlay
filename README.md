@@ -19,16 +19,15 @@ GitHub Actionsのネイティブビルド・モデル取得・APK同梱が成功
 
 ## APKのビルド
 
-本プロジェクトはKataGo本体とモデルをGit管理せず、**公式ソース**と**公式重み**からビルド時に同梱します。Android SDK 36、NDK 27.3.13750724、JDK 17、Ninja、Eigen3ヘッダー、CMakeが必要です。
+本プロジェクトはKataGo本体とモデルをGit管理せず、Gradleの `prepareKataGo` タスクで公式ソース・重みを自動取得、検証、同梱します。WindowsではGit、JDK 17以上、Android SDKと利用許諾済みのSDKライセンスが必要です。NDK/CMakeが不足していればSDK Command-line Tools経由で取得します。
 
-```bash
-export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.3.13750724"
-bash tools/build_katago_android.sh
-bash tools/prepare_model.sh
-./gradlew :app:assembleDebug :app:testDebugUnitTest
+```bat
+git clone https://github.com/shinp-dev/igo-review-overlay.git
+cd igo-review-overlay
+gradlew.bat :app:installDebug
 ```
 
-GitHub Actionsの `Android CI` が成功した場合は、成果物の `igo-review-overlay-offline-debug-apk` にKataGo＋モデルが入っています。単純に `./gradlew` だけ実行した場合、ネイティブエンジン／モデルが準備されていないため解析できません。**前段の2スクリプトが必須です。**
+Linux/macOSでは `./gradlew :app:installDebug`。初回はモデル取得とARM64エンジンのC++ビルドが必要です。以降は取得済みファイルを再利用します。モデルのSHA-256やARM64 ELF検証に失敗した場合、APKのビルドを中断します。`tools/build_katago_android.sh` と `tools/prepare_model.sh` は従来のLinux手動ビルド用として残しています。GitHub Actionsの成果物 `igo-review-overlay-offline-debug-apk` も利用できます。
 
 ## 使い方
 
