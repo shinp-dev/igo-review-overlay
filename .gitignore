@@ -10,3 +10,6 @@ local.properties
 app/src/main/jniLibs/
 app/src/main/assets/katago/model.bin.gz
 app/src/main/assets/katago/model.bin.gz.asset
+
+app/src/main/assets/katago/kata9x9.bin.gz.asset
+app/src/main/assets/katago/*.partial
