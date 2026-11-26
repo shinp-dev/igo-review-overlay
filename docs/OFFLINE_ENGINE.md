@@ -35,3 +35,7 @@
 `cmake -S third_party/KataGo/cpp -B .native-build/rebuild -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=<NDK>/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-34 -DANDROID_STL=c++_static "-DCMAKE_CXX_FLAGS=-DBYTE_ORDER=1234 -DLITTLE_ENDIAN=1234 -DBIG_ENDIAN=4321" -DUSE_BACKEND=EIGEN -DEIGEN3_INCLUDE_DIRS=<absolute path>/third_party/Eigen -DNO_GIT_REVISION=1 -DCMAKE_EXE_LINKER_FLAGS=-Wl,-z,max-page-size=16384`
 次に `cmake --build .native-build/rebuild --target katago --parallel 2`。
 生成されたkatagoをlibkatago.soに格納し、SHA-256を更新する。通常のビルドやCIからはこの処理を実行しない。
+
+### 外部取得の禁止
+
+初回同梱専用Actionsと取得・移行用スクリプトは撤去済み。通常CIはGit管理済みのソース・実行ファイル・モデルのみを利用し、エンジンやモデルの外部取得を行わない。欠落や不整合時はビルドを中止する。
