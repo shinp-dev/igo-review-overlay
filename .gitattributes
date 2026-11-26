@@ -1,0 +1,5 @@
+
+app/src/main/jniLibs/arm64-v8a/libkatago.so -text
+third_party/KataGo-models/** -text
+third_party/KataGo/** -text
+third_party/Eigen/** -text

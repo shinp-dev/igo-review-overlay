@@ -19,7 +19,7 @@ GitHub Actionsのネイティブビルド・モデル取得・APK同梱が成功
 
 ## APKのビルド
 
-本プロジェクトはKataGo本体とモデルをGit管理せず、Gradleの `prepareKataGo` タスクで公式ソース・重みを自動取得、検証、同梱します。WindowsではGit、JDK 17以上、Android SDKと利用許諾済みのSDKライセンスが必要です。NDK/CMakeが不足していればSDK Command-line Tools経由で取得します。
+KataGo ARM64実行ファイル、対応するKataGo/Eigenソース、標準・9路専用ネットワークはすべてGitに同梱済みです。モデルは32MiB以下の分割ファイルをローカルで結合し、元のSHA-256で検証します。WindowsではGit、JDK 17以上、Android SDKが必要です。通常ビルドにNDK/CMake、外部エンジン・モデル取得、Git LFS、GitHub Actionsは不要です。
 
 ```bat
 git clone https://github.com/shinp-dev/igo-review-overlay.git
@@ -27,7 +27,7 @@ cd igo-review-overlay
 gradlew.bat :app:installDebug
 ```
 
-Linux/macOSでは `./gradlew :app:installDebug`。初回はモデル取得とARM64エンジンのC++ビルドが必要です。以降は取得済みファイルを再利用します。モデルのSHA-256やARM64 ELF検証に失敗した場合、APKのビルドを中断します。`tools/build_katago_android.sh` と `tools/prepare_model.sh` は従来のLinux手動ビルド用として残しています。GitHub Actionsの成果物 `igo-review-overlay-offline-debug-apk` も利用できます。
+Linux/macOSでは `./gradlew :app:installDebug`。初回から同梱済みファイルを利用し、欠落・破損時には外部取得にフォールバックせずビルドを中止します。通常のGradle・Android SDK依存関係は別途必要です。GitHub ActionsのAPKは任意です。
 
 ## 使い方
 

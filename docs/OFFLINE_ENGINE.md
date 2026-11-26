@@ -19,3 +19,19 @@
 - `kata-search_analyze` 出力の `info move` を解析する。rootInfo true を指定して探索ルートの勝率・目数差を取得
 - `ProcessBuilder` はAPKの `nativeLibraryDir/libkatago.so` を直接実行。これはJNIライブラリではなく名前を.soにしたPIE実行ファイル
 - Android 14以降のバイナリ実行制限、16KBページ対応、長時間連続解析について実機で確認する
+
+## Git完全同梱構成
+
+- `app/src/main/jniLibs/arm64-v8a/libkatago.so` : ARM64 PIE実行ファイル
+- `third_party/KataGo`, `third_party/Eigen` : 固定リビジョン対応ソースとライセンス
+- `third_party/KataGo-models` : 両公式モデルの32MiB以下の分割ファイル（通常Git）
+- `third_party/KataGo.arm64.sha256` : バイナリの検証用SHA-256
+
+通常Gradleは同梱ファイルだけを検証し、モデルの元のgzipバイト列を復元してAPKに格納する。ネットワーク取得、NDK/CMakeは不要。モデル取り込み機能は従来通り。欠落・破損時にはビルド失敗とし、取得し直さない。
+
+### 明示的なエンジン再ビルド（通常は不要）
+
+同梱ソースとNDK 27.3.13750724 / CMake 3.22.1 / Ninjaを用いる。
+`cmake -S third_party/KataGo/cpp -B .native-build/rebuild -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=<NDK>/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-34 -DANDROID_STL=c++_static "-DCMAKE_CXX_FLAGS=-DBYTE_ORDER=1234 -DLITTLE_ENDIAN=1234 -DBIG_ENDIAN=4321" -DUSE_BACKEND=EIGEN -DEIGEN3_INCLUDE_DIRS=<absolute path>/third_party/Eigen -DNO_GIT_REVISION=1 -DCMAKE_EXE_LINKER_FLAGS=-Wl,-z,max-page-size=16384`
+次に `cmake --build .native-build/rebuild --target katago --parallel 2`。
+生成されたkatagoをlibkatago.soに格納し、SHA-256を更新する。通常のビルドやCIからはこの処理を実行しない。
